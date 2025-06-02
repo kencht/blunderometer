@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, UTC
 from database_multiuser import DatabaseManager, Game, Move
-from backend.lichess_client import LichessClient
+from lichess_client import LichessClient
 from game_analyzer import GameAnalyzer
 
 class BlunderTracker:

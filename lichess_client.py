@@ -16,7 +16,7 @@ class LichessClient:
         if self.session:
             await self.session.close()
     
-    async def get_user_games(self, username, max_games=100):
+    async def get_user_games(self, username, max_games=100, since=None, until=None, game_types=None):
         """Fetch user's games from Lichess"""
         url = f"{self.base_url}/games/user/{username}"
         
@@ -29,6 +29,17 @@ class LichessClient:
             'evals': 'false',
             'opening': 'true'
         }
+        
+        # Add optional parameters
+        if since:
+            # Convert datetime to milliseconds timestamp
+            params['since'] = int(since.timestamp() * 1000)
+        if until:
+            # Convert datetime to milliseconds timestamp  
+            params['until'] = int(until.timestamp() * 1000)
+        if game_types:
+            # Convert list to comma-separated string
+            params['perfType'] = ','.join(game_types)
         
         games = []
         async with self.session.get(url, params=params) as response:
