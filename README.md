@@ -2,7 +2,13 @@
 
 A comprehensive chess analysis tool that fetches your Lichess games and analyzes them to identify blunders, mistakes, and inaccuracies using Stockfish engine analysis.
 
-![Blunderometer Screenshot](https://via.placeholder.com/800x400/2563eb/ffffff?text=Blunderometer+Dashboard)
+> **Track your chess improvement with detailed game analysis, real-time progress tracking, and comprehensive statistics.**
+
+## 📸 Screenshot
+
+![Blunderometer Dashboard](screenshots/UI.png)
+
+*The Blunderometer dashboard showing game analysis, performance metrics, and improvement trends over time.*
 
 ## 🚀 Features
 
