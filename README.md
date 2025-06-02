@@ -43,14 +43,14 @@ A comprehensive chess analysis tool that fetches your Lichess games and analyzes
 - **SQLite** - Lightweight, file-based database
 - **Multi-tenant** - Separate databases per user
 
-## 📦 Installation
+## 📦 Quick Start
 
 ### Prerequisites
 - Python 3.12 or higher
 - Node.js 18 or higher
 - Stockfish chess engine
 
-### Install Stockfish
+### 1. Install Stockfish Chess Engine
 
 **macOS (with Homebrew):**
 ```bash
@@ -63,77 +63,148 @@ sudo apt-get install stockfish
 ```
 
 **Windows:**
-Download from [Stockfish official site](https://stockfishchess.org/download/)
+1. Download from [Stockfish official site](https://stockfishchess.org/download/)
+2. Extract and add to your PATH, or note the installation location
 
-### Backend Setup
+### 2. Clone and Setup
 
-1. **Clone the repository:**
 ```bash
-git clone https://github.com/yourusername/blunderometer.git
+# Clone the repository
+git clone https://github.com/timkench/blunderometer.git
 cd blunderometer
-```
 
-2. **Create virtual environment:**
-```bash
+# Setup Python backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. **Install Python dependencies:**
-```bash
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
 
-4. **Configure Stockfish path (if needed):**
-Edit `game_analyzer.py` and update the `engine_path` if Stockfish is not in `/opt/homebrew/bin/stockfish`
-
-### Frontend Setup
-
-1. **Navigate to frontend directory:**
-```bash
+# Setup React frontend
 cd frontend
-```
-
-2. **Install Node.js dependencies:**
-```bash
 npm install
+cd ..
 ```
 
-## 🚀 Usage
+### 3. Configure Stockfish (if needed)
 
-### Start the Application
+If Stockfish is not in your PATH or in `/opt/homebrew/bin/stockfish`, edit `game_analyzer.py`:
 
-1. **Start the backend (in root directory):**
+```python
+# Line 12-15: Update this path to match your Stockfish installation
+engine_path = "/your/path/to/stockfish"  # Update this line
+```
+
+Common paths:
+- **macOS Homebrew**: `/opt/homebrew/bin/stockfish`
+- **Ubuntu**: `/usr/bin/stockfish`  
+- **Windows**: `C:\Path\To\stockfish.exe`
+
+## 🚀 Running the Application
+
+### Start Both Servers
+
+**Terminal 1 - Backend:**
 ```bash
+cd blunderometer
+source venv/bin/activate  # Windows: venv\Scripts\activate
 python app.py
 ```
-The API will be available at `http://localhost:5001`
+✅ Backend running at `http://localhost:5001`
 
-2. **Start the frontend (in frontend directory):**
+**Terminal 2 - Frontend:**
 ```bash
-cd frontend
+cd blunderometer/frontend
 npm start
 ```
-The web interface will be available at `http://localhost:3000`
+✅ Web interface at `http://localhost:3000`
 
-### Using the Application
+### First Time Setup
 
-1. **Enter your Lichess username** in the input field
-2. **Configure analysis settings:**
-   - **Games**: Number of games to fetch (25-200)
-   - **Per Game (s)**: Time limit for analyzing each game (10-60 seconds)
-   - **Total (s)**: Optional total session time limit (300-1800 seconds)
+1. **Open your browser** to `http://localhost:3000`
+2. **Enter your Lichess username** (e.g., `magnus`, `hikaru`, etc.)
+3. **Click "Fetch 50 Newer Games"** to download recent games
+4. **Wait for fetch to complete**, then click "Start Analysis"
+5. **Watch the real-time progress** with countdown timers
+6. **Explore your results** in the dashboard!
 
-3. **Fetch games** from Lichess (newer or older games)
-4. **Start analysis** and watch the real-time progress
-5. **View results** in the comprehensive dashboard
+### 📋 What You'll See
 
-### Analysis Features
+**During Game Fetching:**
+- Progress indicator showing games downloaded
+- Message: "Fetching 50 newer games from Lichess..."
+- Completion: "Games fetched successfully! Ready to analyze."
 
-- **Real-time Progress**: Watch games being analyzed with countdown timers
-- **Time Management**: Set per-game limits to balance speed vs accuracy
-- **Session Control**: Use total time limits for quick analysis sessions
-- **Detailed Tracking**: See current game being analyzed and completion stats
+**During Analysis:**
+- Real-time countdown timer for current game
+- Progress bar showing games analyzed (e.g., "14 / 50")
+- Current game ID being processed
+- Time estimates and session limits
+- Games analyzed vs skipped counts
+
+**In the Dashboard:**
+- Total games and analysis progress
+- Blunder/mistake/inaccuracy statistics
+- Performance charts over time
+- Time control breakdowns
+- Recent games with analysis status
+
+### ✅ What Success Looks Like
+
+**Terminal 1 (Backend):**
+```
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://[::]:5001
+ * Debug mode: on
+```
+
+**Terminal 2 (Frontend):**
+```
+Compiled successfully!
+
+You can now view frontend in the browser.
+  Local:            http://localhost:3000
+  On Your Network:  http://192.168.1.100:3000
+```
+
+**Browser (localhost:3000):**
+- Modern chess-themed dashboard loads
+- Username input field is ready
+- "Game Loading" workflow panel visible
+- Statistics panels show "No data available" until you add games
+
+**After entering username and fetching games:**
+- "Games fetched successfully!" message appears
+- Analysis button becomes available
+- Statistics update with game counts
+
+**During analysis:**
+- Real-time countdown timer (e.g., "Per game limit: 0:15")
+- Progress bar animating (e.g., "28 / 50 games")  
+- Current game ID displayed (e.g., "Current: YdH3exjD")
+- Completion stats updating ("Completed: 14 | Skipped: 0")
+
+### Example Workflow
+
+```bash
+# Terminal 1
+cd blunderometer
+source venv/bin/activate
+python app.py
+# Server starts at http://localhost:5001
+
+# Terminal 2  
+cd blunderometer/frontend
+npm start
+# Frontend opens at http://localhost:3000
+
+# In browser at localhost:3000:
+# 1. Enter username: "your_lichess_username"
+# 2. Click "Fetch 50 Newer Games" 
+# 3. Wait for "Games fetched successfully!"
+# 4. Click "Start Analysis"
+# 5. Watch real-time progress and countdown timers
+# 6. View your blunder analysis results!
+```
 
 ## 📊 Understanding the Results
 
@@ -148,78 +219,49 @@ The web interface will be available at `http://localhost:3000`
 - **Error Distribution**: Breakdown by time control and rating
 - **Improvement Trends**: Track progress over time
 
-## 🔧 Configuration
+## ⚙️ Configuration Options
 
-### Time Limits
-The application supports two types of time limits:
+**Analysis Settings:**
+- **Games to Fetch**: 25-200 games per batch
+- **Per Game Time**: 10-60 seconds per game (balance speed vs accuracy)
+- **Total Session Time**: 300-1800 seconds (optional session limit)
 
-1. **Per-Game Limit**: Maximum time to spend analyzing each individual game
-2. **Total Session Limit**: Maximum time for the entire analysis session
+**Recommended Settings:**
+- **Quick Analysis**: 10s per game, 600s total (10 minutes max)
+- **Balanced**: 20s per game, no total limit (default)
+- **Deep Analysis**: 45s per game, no total limit (most accurate)
 
-This allows you to balance between analysis depth and total processing time.
+### 🎯 Analysis Features
 
-### Engine Settings
-Stockfish analysis uses depth 15 by default. You can modify this in `game_analyzer.py`:
-```python
-eval_before = await engine.analyse(board, chess.engine.Limit(depth=15))
-```
+- **Real-time Progress**: Watch games being analyzed with countdown timers
+- **Time Management**: Set per-game limits to balance speed vs accuracy  
+- **Session Control**: Use total time limits for quick analysis sessions
+- **Detailed Tracking**: See current game being analyzed and completion stats
+- **Multi-User Support**: Each username gets its own separate database
 
-## 🗃️ Database Schema
+### 🔧 Troubleshooting
 
-The application uses separate SQLite databases for each user with two main tables:
+**Common Issues:**
 
-### Games Table
-- Game metadata (ID, date, rating, time control, etc.)
-- Analysis status and timestamps
-- Result and opening information
+1. **"Stockfish not found" error:**
+   - Install Stockfish: `brew install stockfish` (macOS) or `sudo apt install stockfish` (Linux)
+   - Update path in `game_analyzer.py` line 12-15
 
-### Moves Table
-- Individual move analysis results
-- Centipawn loss calculations
-- Move classifications (blunder/mistake/inaccuracy)
+2. **"Port already in use" error:**
+   - Kill existing processes: `pkill -f "python app.py"` and `pkill -f "npm start"`
+   - Try different ports in `app.py` (line 475) and restart
 
-## 🧪 Testing
+3. **Games not fetching:**
+   - Check your Lichess username is correct (case-sensitive)
+   - Ensure you have public games on Lichess
+   - Try fetching fewer games (25 instead of 200)
 
-Run the test suite to verify functionality:
+4. **Analysis stuck/slow:**
+   - Reduce per-game time limit (try 10-15 seconds)
+   - Add a total session time limit
+   - Check Stockfish is working: `stockfish` in terminal should open the engine
 
-```bash
-# Test basic analysis
-python test_simple_analysis.py
-
-# Test time limit functionality
-python test_time_limit_fix.py
-
-# Test the complete workflow
-python test_workflow.py
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Lichess](https://lichess.org) for providing the excellent API
-- [Stockfish](https://stockfishchess.org) for the powerful chess engine
-- [python-chess](https://github.com/niklasf/python-chess) for chess game manipulation
-- The chess community for inspiration and feedback
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/yourusername/blunderometer/issues) page
-2. Create a new issue with detailed information
-3. Include your operating system, Python version, and error messages
-
----
-
-**Happy analyzing! 🎯♟️**
+5. **Frontend won't start:**
+   - Ensure Node.js 18+ is installed: `node --version`
+   - Clear npm cache: `npm cache clean --force`
+   - Delete `node_modules` and reinstall: `rm -rf node_modules && npm install`
