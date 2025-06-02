@@ -162,13 +162,14 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
   };
 
   // Custom plugin to add background color to chart area only
-  const chartAreaBackgroundPlugin = {
-    id: 'chartAreaBackground',
-    beforeDraw: (chart: any) => {
-      const {
-        ctx,
-        chartArea: { left, top, width, height },
-      } = chart;
+  // Currently unused but kept for future styling enhancements
+  // const chartAreaBackgroundPlugin = {
+  //   id: 'chartAreaBackground',
+  //   beforeDraw: (chart: any) => {
+  //     const {
+  //       ctx,
+  //       chartArea: { left, top, width, height },
+  //     } = chart;
       
       ctx.save();
       ctx.fillStyle = '#f8f9fa';

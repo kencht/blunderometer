@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Zap, TrendingUp, Target, Bolt } from 'lucide-react';
-import { apiService, GameStats, TimeControlStats } from '../services/api';
+import { Clock, Zap, Target, Bolt } from 'lucide-react';
+import { apiService, GameStats } from '../services/api';
 
 interface TimeControlStatsPanelProps {
   username: string;

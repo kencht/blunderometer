@@ -19,7 +19,7 @@
 1. Go to [render.com](https://render.com)
 2. Connect your GitHub repository
 3. Create new "Web Service"
-4. Set build command: `pip install -r requirements.txt && cd frontend && npm install && npm run build`
+4. Set build command: `pip install -r requirements.txt && cd frontend && npm install && npm run build:ci`
 5. Set start command: `python app.py`
 6. Deploy!
 
@@ -31,7 +31,7 @@
 
 2. **Frontend Service:**
    - Type: Static Site
-   - Build: `cd frontend && npm install && npm run build`
+   - Build: `cd frontend && npm install && npm run build:ci`
    - Publish: `frontend/build`
 
 ## Environment Setup
