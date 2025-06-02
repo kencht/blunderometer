@@ -84,7 +84,17 @@ npm install
 cd ..
 ```
 
-### 3. Configure Stockfish (if needed)
+### 3. Verify Setup (Optional)
+
+Run the setup checker to verify everything is configured correctly:
+
+```bash
+python check_setup.py
+```
+
+This will check your Python version, Node.js, Stockfish installation, and all dependencies.
+
+### 4. Configure Stockfish (if needed)
 
 If Stockfish is not in your PATH or in `/opt/homebrew/bin/stockfish`, edit `game_analyzer.py`:
 
