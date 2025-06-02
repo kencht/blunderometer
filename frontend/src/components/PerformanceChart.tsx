@@ -170,13 +170,13 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
   //       ctx,
   //       chartArea: { left, top, width, height },
   //     } = chart;
-      
-      ctx.save();
-      ctx.fillStyle = '#f8f9fa';
-      ctx.fillRect(left, top, width, height);
-      ctx.restore();
-    },
-  };
+  //     
+  //     ctx.save();
+  //     ctx.fillStyle = '#f8f9fa';
+  //     ctx.fillRect(left, top, width, height);
+  //     ctx.restore();
+  //   },
+  // };
 
   const options: ChartOptions<'line'> = {
     animation: { duration: 0 }, // Disable animations for instant redraw
