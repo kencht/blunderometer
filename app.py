@@ -9,9 +9,19 @@ from database_multiuser import db_manager, Game, Move
 from main import BlunderTracker
 import threading
 import json
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 CORS(app)  # Allow all origins for development
+
+# Serve React frontend in production
+@app.route('/')
+def serve_frontend():
+    """Serve the React frontend"""
+    if os.path.exists('frontend/build/index.html'):
+        return app.send_static_file('index.html')
+    else:
+        return "Frontend not built. Run 'cd frontend && npm run build' first."
 
 # Global state for tracking operations
 operation_status = {
@@ -20,11 +30,6 @@ operation_status = {
     'last_operation': None,
     'progress': {}
 }
-
-@app.route('/')
-def dashboard():
-    """Main dashboard page"""
-    return render_template('dashboard.html')
 
 @app.route('/api/stats')
 def get_stats():
@@ -470,5 +475,10 @@ def get_performance_data():
         db.close()
     return result
 
+# Configure for cloud deployment
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    port = int(os.environ.get('PORT', 5001))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    
+    # Enable CORS for production
+    app.run(host='0.0.0.0', port=port, debug=debug)
