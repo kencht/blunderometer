@@ -13,10 +13,17 @@ function App() {
     timeControl: 'blitz',
   });
   const [statsKey, setStatsKey] = useState(0);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // The submitted/active username
+  const [usernameInput, setUsernameInput] = useState(''); // The input field value
 
   const handleStatsUpdate = () => {
     setStatsKey(prev => prev + 1);
+  };
+
+  const handleUsernameSubmit = () => {
+    if (usernameInput.trim()) {
+      setUsername(usernameInput.trim());
+    }
   };
 
   return (
@@ -42,15 +49,30 @@ function App() {
           {/* Username input */}
           <div className="flex items-center gap-4 py-2">
             <label htmlFor="username" className="text-sm font-medium text-gray-700">Lichess Username:</label>
-            <input
-              id="username"
-              type="text"
-              className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Enter Lichess username"
-              style={{ width: 200 }}
-            />
+            <div className="flex items-center gap-2">
+              <input
+                id="username"
+                type="text"
+                className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={usernameInput}
+                onChange={e => setUsernameInput(e.target.value)}
+                placeholder="Enter Lichess username"
+                style={{ width: 200 }}
+                onKeyPress={e => e.key === 'Enter' && handleUsernameSubmit()}
+              />
+              <button
+                onClick={handleUsernameSubmit}
+                disabled={!usernameInput.trim()}
+                className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Submit
+              </button>
+              {username && (
+                <span className="text-sm text-green-600 font-medium">
+                  Active: {username}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </header>

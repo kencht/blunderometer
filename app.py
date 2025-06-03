@@ -23,13 +23,50 @@ def serve_frontend():
     else:
         return "Frontend not built. Run 'cd frontend && npm run build' first."
 
-# Global state for tracking operations
-operation_status = {
-    'fetching': False,
-    'analyzing': False,
-    'last_operation': None,
-    'progress': {}
-}
+# Per-user operation tracking and resource management
+user_operations = {}
+MAX_CONCURRENT_ANALYSES = 2  # Limit concurrent Stockfish engines to prevent CPU overload
+USER_TIMEOUT_SECONDS = 60  # Timeout user operations after this much inactivity
+
+def get_user_status(username):
+    """Get or create operation status for a specific user"""
+    if username not in user_operations:
+        user_operations[username] = {
+            'fetching': False,
+            'analyzing': False,
+            'last_operation': None,
+            'progress': {},
+            'last_active': datetime.now(UTC),
+        }
+    return user_operations[username]
+
+def update_user_activity(username):
+    """Update the last active timestamp for a user"""
+    if username in user_operations:
+        user_operations[username]['last_active'] = datetime.now(UTC)
+
+def cleanup_inactive_users():
+    """Cleanup users that have been inactive for too long"""
+    now = datetime.now(UTC)
+    to_remove = []
+    
+    for username, status in user_operations.items():
+        # Only cleanup users that are not actively analyzing or fetching
+        if not status.get('analyzing') and not status.get('fetching'):
+            inactive_seconds = (now - status['last_active']).total_seconds()
+            if inactive_seconds > USER_TIMEOUT_SECONDS:
+                to_remove.append(username)
+    
+    # Remove the inactive users
+    for username in to_remove:
+        print(f"[INFO] Removing inactive user: {username}")
+        del user_operations[username]
+    
+    return to_remove
+
+def get_active_analyses_count():
+    """Count how many users are currently analyzing"""
+    return sum(1 for ops in user_operations.values() if ops.get('analyzing', False))
 
 @app.route('/api/stats')
 def get_stats():
@@ -39,6 +76,9 @@ def get_stats():
     
     if not username:
         return jsonify({'error': 'Username is required'}), 400
+        
+    # Update user activity timestamp
+    update_user_activity(username)
     
     db = db_manager.get_db(username)
     
@@ -132,7 +172,7 @@ def get_stats():
             },
             'time_controls': [{'name': tc, 'count': count} for tc, count in time_controls],
             'time_control_stats': time_control_stats,
-            'operation_status': operation_status
+            'operation_status': get_user_status(username)
         })
     finally:
         db.close()
@@ -140,15 +180,21 @@ def get_stats():
 @app.route('/api/fetch-games', methods=['POST'])
 def fetch_games():
     """Fetch next batch of games"""
-    global operation_status
-    if operation_status['fetching'] or operation_status['analyzing']:
-        return jsonify({'error': 'Another operation is already running'}), 400
     data = request.get_json()
-    batch_size = data.get('batch_size', 100)
-    fetch_older = data.get('fetch_older', False)
     username = data.get('username')
     if not username:
         return jsonify({'error': 'Username is required'}), 400
+    
+    # Update user activity timestamp
+    update_user_activity(username)
+    
+    user_status = get_user_status(username)
+    if user_status['fetching'] or user_status['analyzing']:
+        return jsonify({'error': f'Another operation is already running for user {username}'}), 400
+    
+    batch_size = data.get('batch_size', 100)
+    fetch_older = data.get('fetch_older', False)
+    
     # Start fetching in background
     thread = threading.Thread(target=run_fetch_games, args=(username, batch_size, fetch_older))
     thread.start()
@@ -158,15 +204,28 @@ def fetch_games():
 @app.route('/api/analyze-games', methods=['POST'])
 def analyze_games():
     """Analyze unanalyzed games"""
-    global operation_status
-    if operation_status['fetching'] or operation_status['analyzing']:
-        return jsonify({'error': 'Another operation is already running'}), 400
     data = request.get_json()
-    time_limit_per_game = data.get('time_limit_per_game', 20)
-    total_time_limit = data.get('total_time_limit')  # Optional total session limit
     username = data.get('username')
     if not username:
         return jsonify({'error': 'Username is required'}), 400
+    
+    # Update user activity timestamp
+    update_user_activity(username)
+    
+    user_status = get_user_status(username)
+    if user_status['fetching'] or user_status['analyzing']:
+        return jsonify({'error': f'Another operation is already running for user {username}'}), 400
+    
+    # Check if we've reached the concurrent analysis limit
+    active_analyses = get_active_analyses_count()
+    if active_analyses >= MAX_CONCURRENT_ANALYSES:
+        return jsonify({
+            'error': f'Maximum concurrent analyses ({MAX_CONCURRENT_ANALYSES}) reached. Please wait for another analysis to complete.'
+        }), 429  # 429 Too Many Requests
+    
+    time_limit_per_game = data.get('time_limit_per_game', 20)
+    total_time_limit = data.get('total_time_limit')  # Optional total session limit
+    
     # Start analysis in background
     thread = threading.Thread(target=run_analyze_games, args=(username, time_limit_per_game, total_time_limit))
     thread.start()
@@ -177,11 +236,11 @@ def analyze_games():
 
 def run_fetch_games(username, batch_size, fetch_older=False):
     """Background task to fetch games"""
-    global operation_status
+    user_status = get_user_status(username)
     direction = "older" if fetch_older else "newer"
     print(f"[DEBUG] Starting fetch for {username} with batch size {batch_size} ({direction} games)")
-    operation_status['fetching'] = True
-    operation_status['progress'] = {'stage': 'fetching', 'current': 0, 'total': batch_size}
+    user_status['fetching'] = True
+    user_status['progress'] = {'stage': 'fetching', 'current': 0, 'total': batch_size}
     try:
         async def fetch():
             print("[DEBUG] Creating BlunderTracker instance")
@@ -197,7 +256,7 @@ def run_fetch_games(username, batch_size, fetch_older=False):
         games_added = loop.run_until_complete(fetch())
         print(f"[DEBUG] Fetch complete, games added: {games_added}")
         loop.close()
-        operation_status['last_operation'] = {
+        user_status['last_operation'] = {
             'type': 'fetch',
             'completed_at': datetime.now(UTC).isoformat(),
             'result': f'Added {games_added} new {direction} games for {username}'
@@ -205,19 +264,19 @@ def run_fetch_games(username, batch_size, fetch_older=False):
     except Exception as e:
         print(f"[ERROR] Exception during fetch: {e}")
         import traceback; traceback.print_exc()
-        operation_status['last_operation'] = {
+        user_status['last_operation'] = {
             'type': 'fetch',
             'completed_at': datetime.now(UTC).isoformat(),
             'error': str(e)
         }
     finally:
-        operation_status['fetching'] = False
-        operation_status['progress'] = {}
+        user_status['fetching'] = False
+        user_status['progress'] = {}
 
 def run_analyze_games(username, time_limit_per_game, total_time_limit=None):
     """Background task to analyze games"""
-    global operation_status
-    operation_status['analyzing'] = True
+    user_status = get_user_status(username)
+    user_status['analyzing'] = True
     
     # Get count of unanalyzed games for progress tracking
     db = db_manager.get_db(username)
@@ -227,7 +286,7 @@ def run_analyze_games(username, time_limit_per_game, total_time_limit=None):
     ).count()
     db.close()
     
-    operation_status['progress'] = {
+    user_status['progress'] = {
         'stage': 'analyzing', 
         'current': 0, 
         'total': unanalyzed_count,
@@ -239,38 +298,79 @@ def run_analyze_games(username, time_limit_per_game, total_time_limit=None):
         'games_skipped': 0
     }
     
+    # Set the last active timestamp to prevent timeout during analysis
+    update_user_activity(username)
+    
+    def check_user_timeout():
+        """Check if the user has timed out"""
+        if username not in user_operations:
+            print(f"[INFO] User {username} has been removed. Stopping analysis.")
+            return True
+            
+        # Calculate time since last activity
+        inactive_seconds = (datetime.now(UTC) - user_operations[username]['last_active']).total_seconds()
+        
+        # If inactive for 3x the timeout period, consider this a timeout
+        if inactive_seconds > USER_TIMEOUT_SECONDS * 3:
+            print(f"[INFO] User {username} has timed out after {inactive_seconds}s of inactivity. Stopping analysis.")
+            return True
+            
+        return False
+    
     def progress_callback(progress_data):
-        """Update global progress state"""
-        operation_status['progress'].update(progress_data)
+        """Update user-specific progress state"""
+        # Only update if the user still exists
+        if username in user_operations:
+            user_status['progress'].update(progress_data)
     
     try:
         async def analyze():
             tracker = BlunderTracker(progress_callback=progress_callback)
+            
+            # Store original analyze_games method for timeout checking
+            original_analyze_games = tracker.analyze_games
+            
+            async def analyze_games_with_timeout_check(*args, **kwargs):
+                # Check if user has timed out before starting analysis
+                if check_user_timeout():
+                    print(f"[INFO] Analysis for {username} terminated due to timeout")
+                    return {"games_analyzed": 0, "games_skipped": 0}
+                
+                # Update activity timestamp before analyzing
+                update_user_activity(username)
+                
+                # Call the original method
+                return await original_analyze_games(*args, **kwargs)
+            
+            # Replace with our wrapped version
+            tracker.analyze_games = analyze_games_with_timeout_check
+            
             return await tracker.analyze_games(
                 username, 
                 time_limit_per_game_seconds=time_limit_per_game,
                 total_time_limit_seconds=total_time_limit
             )
+            
         # Run async function in new event loop
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(analyze())
         loop.close()
         
-        operation_status['last_operation'] = {
+        user_status['last_operation'] = {
             'type': 'analyze',
             'completed_at': datetime.now(UTC).isoformat(),
             'result': f'Analysis completed for {username}: {result["games_analyzed"]} games analyzed, {result["games_skipped"]} skipped'
         }
     except Exception as e:
-        operation_status['last_operation'] = {
+        user_status['last_operation'] = {
             'type': 'analyze',
             'completed_at': datetime.now(UTC).isoformat(),
             'error': str(e)
         }
     finally:
-        operation_status['analyzing'] = False
-        operation_status['progress'] = {}
+        user_status['analyzing'] = False
+        user_status['progress'] = {}
 
 @app.route('/api/recent-games')
 def get_recent_games():
@@ -278,6 +378,9 @@ def get_recent_games():
     username = request.args.get('username', 'default')
     if not username:
         return jsonify({'error': 'Username is required'}), 400
+        
+    # Update user activity timestamp
+    update_user_activity(username)
     db = db_manager.get_db(username)
     try:
         games = db.query(Game).order_by(Game.played_at.desc()).limit(20).all()
@@ -312,6 +415,9 @@ def get_blunder_analysis():
     username = request.args.get('username', 'default')
     if not username:
         return jsonify({'error': 'Username is required'}), 400
+        
+    # Update user activity timestamp
+    update_user_activity(username)
     db = db_manager.get_db(username)
     try:
         # Recent blunders
@@ -375,6 +481,9 @@ def get_performance_data():
     username = request.args.get('username', 'default')
     if not username:
         return jsonify({'error': 'Username is required'}), 400
+        
+    # Update user activity timestamp
+    update_user_activity(username)
     db = db_manager.get_db(username)
     try:
         # Get query parameters for filtering
@@ -474,6 +583,49 @@ def get_performance_data():
     finally:
         db.close()
     return result
+
+@app.route('/api/ping', methods=['POST'])
+def ping():
+    """Keep-alive endpoint for the frontend to prevent user timeout"""
+    data = request.get_json()
+    username = data.get('username')
+    
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    
+    # Update the last active timestamp
+    update_user_activity(username)
+    
+    # Run cleanup as a side effect
+    cleanup_inactive_users()
+    
+    # Return current status and active analysis count
+    active_analyses = get_active_analyses_count()
+    return jsonify({
+        'status': 'alive',
+        'username': username,
+        'activeAnalyses': active_analyses,
+        'maxConcurrentAnalyses': MAX_CONCURRENT_ANALYSES
+    })
+
+@app.route('/api/active-users', methods=['GET'])
+def get_active_users():
+    """Get count of active users (admin only)"""
+    # Add simple admin authentication here if needed
+    
+    # Run cleanup before counting
+    cleanup_inactive_users()
+    
+    active_analyses = get_active_analyses_count()
+    total_users = len(user_operations)
+    analyzing_users = [user for user, status in user_operations.items() if status.get('analyzing', False)]
+    
+    return jsonify({
+        'totalUsers': total_users,
+        'activeAnalyses': active_analyses,
+        'maxConcurrentAnalyses': MAX_CONCURRENT_ANALYSES,
+        'analyzingUsers': analyzing_users,
+    })
 
 # Configure for cloud deployment
 if __name__ == '__main__':

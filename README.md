@@ -20,15 +20,22 @@ A comprehensive chess analysis tool that fetches your Lichess games and analyzes
 
 ### Data Management
 - **Lichess Integration**: Automatically fetch games from Lichess API
-- **Multi-User Support**: Separate databases for different users
+- **Multi-User Support**: Separate databases for different users with true concurrency
 - **Incremental Updates**: Fetch only new games or fill in historical gaps
 - **Persistent Storage**: SQLite database with full game and move history
+- **Concurrent Analysis**: Multiple users can analyze games simultaneously
 
 ### Visualization & Analytics
 - **Performance Charts**: Track your improvement over time
 - **Time Control Analysis**: Compare performance across different time controls
 - **Detailed Statistics**: Comprehensive stats on games, moves, and errors
-- **Interactive Dashboard**: Modern React-based UI with real-time updates## 🛠️ Technical Stack
+- **Interactive Dashboard**: Modern React-based UI with real-time updates
+
+### Session Management
+- **Automatic Timeout**: Inactive user sessions are cleaned up after 60 seconds to free resources
+- **Keep-alive Mechanism**: Frontend automatically sends periodic pings to maintain active sessions
+- **Resource Protection**: Maximum concurrent analyses limit prevents server overload
+- **Graceful Cleanup**: Proper cleanup when users close browser tabs or disconnect## 🛠️ Technical Stack
 
 ### Backend
 - **Python 3.12+** - Core application logic
@@ -254,6 +261,17 @@ npm start
 - **Session Control**: Use total time limits for quick analysis sessions
 - **Detailed Tracking**: See current game being analyzed and completion stats
 - **Multi-User Support**: Each username gets its own separate database
+
+### ⚡️ Concurrent Usage
+
+Blunderometer supports true concurrent multi-user operation:
+
+- **Simultaneous Analysis**: Up to 2 users can analyze games at the same time
+- **Per-User State Tracking**: Each user's operations are tracked independently
+- **Resource Management**: CPU usage is controlled to prevent server overload
+- **Browser Support**: Any number of users can browse their stats simultaneously
+
+For more details on the concurrency model, see [CONCURRENCY.md](CONCURRENCY.md).
 
 ### 🔧 Troubleshooting
 

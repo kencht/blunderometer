@@ -129,12 +129,22 @@ class ApiService {
   }
 
   async fetchGames(username: string, count: number = 50, fetchOlder: boolean = false): Promise<{ success: boolean; message: string }> {
-    const response = await this.axios.post<{ success: boolean; message: string }>('/api/fetch-games', {
-      username,
-      batch_size: count,
-      fetch_older: fetchOlder
-    });
-    return response.data;
+    try {
+      const response = await this.axios.post<{ message: string }>('/api/fetch-games', {
+        username,
+        batch_size: count,
+        fetch_older: fetchOlder
+      });
+      return { 
+        success: true, 
+        message: response.data.message || 'Started fetching games' 
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.error || error.message || 'Failed to fetch games'
+      };
+    }
   }
 
   async analyzeGames(username: string, timeLimitPerGame: number = 20, totalTimeLimit?: number): Promise<{ success: boolean; message: string }> {
@@ -147,8 +157,61 @@ class ApiService {
       requestData.total_time_limit = totalTimeLimit;
     }
     
-    const response = await this.axios.post<{ success: boolean; message: string }>('/api/analyze-games', requestData);
-    return response.data;
+    try {
+      const response = await this.axios.post<{ success: boolean; message: string }>('/api/analyze-games', requestData);
+      return { 
+        success: true, 
+        message: response.data.message || 'Analysis started successfully' 
+      };
+    } catch (error: any) {
+      // Handle 429 Too Many Requests specifically
+      if (error.response && error.response.status === 429) {
+        return {
+          success: false,
+          message: error.response.data.error || 'Maximum concurrent analyses reached. Please try again later.'
+        };
+      }
+      // Handle other errors
+      return {
+        success: false,
+        message: error.response?.data?.error || error.message || 'Failed to start analysis'
+      };
+    }
+  }
+  
+  async ping(username: string): Promise<{
+    status: string;
+    username: string;
+    activeAnalyses: number;
+    maxConcurrentAnalyses: number;
+  }> {
+    try {
+      const response = await this.axios.post<{
+        status: string;
+        username: string;
+        activeAnalyses: number;
+        maxConcurrentAnalyses: number;
+      }>('/api/ping', { username });
+      return response.data;
+    } catch (error) {
+      console.error('Ping failed:', error);
+      throw error;
+    }
+  }
+  
+  // Start a keep-alive ping interval for a user
+  startPingInterval(username: string, intervalMs: number = 30000): { stop: () => void } {
+    const intervalId = setInterval(async () => {
+      try {
+        await this.ping(username);
+      } catch (error) {
+        console.log('Keep-alive ping failed:', error);
+      }
+    }, intervalMs);
+    
+    return {
+      stop: () => clearInterval(intervalId)
+    };
   }
 }
 

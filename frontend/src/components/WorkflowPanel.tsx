@@ -5,7 +5,7 @@ import { apiService, GameStats } from '../services/api';
 interface WorkflowPanelProps {
   onStatsUpdate?: () => void;
   username: string;
-  onUsernameChange: (username: string) => void;
+  onUsernameChange?: (username: string) => void; // Make optional since we don't use it anymore
 }
 
 type WorkflowStep = 'input' | 'fetch' | 'analyze' | 'complete';
@@ -28,6 +28,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onStatsUpdate, use
   const [timeLimit, setTimeLimit] = useState(20);
   const [totalTimeLimit, setTotalTimeLimit] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  const [keepAliveSession, setKeepAliveSession] = useState<{ stop: () => void } | null>(null);
   const [operationStatus, setOperationStatus] = useState<OperationStatus>({
     fetching: false,
     analyzing: false,
@@ -40,6 +41,25 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onStatsUpdate, use
   const [countdown, setCountdown] = useState<number | null>(null);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | null>(null);
 
+  // Keep-alive pings to prevent session timeout
+  useEffect(() => {
+    // Clean up previous session if it exists
+    if (keepAliveSession) {
+      keepAliveSession.stop();
+    }
+    
+    // Start new keep-alive session if username is provided
+    if (username) {
+      const session = apiService.startPingInterval(username, 30000); // ping every 30 seconds
+      setKeepAliveSession(session);
+    }
+    
+    return () => {
+      if (keepAliveSession) keepAliveSession.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username]);
+  
   // Poll for operation status and stats
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -108,8 +128,12 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onStatsUpdate, use
     
     return () => {
       if (interval) clearInterval(interval);
+      // Clean up keep-alive session when component unmounts
+      if (keepAliveSession) {
+        keepAliveSession.stop();
+      }
     };
-  }, [currentStep, onStatsUpdate, username]);
+  }, [currentStep, onStatsUpdate, username, keepAliveSession]);
 
   const handleFetchGames = async (fetchOlder: boolean = false) => {
     if (!username.trim()) {
@@ -122,10 +146,14 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onStatsUpdate, use
     setStatusMessage('');
 
     try {
-      await apiService.fetchGames(username.trim(), batchSize, fetchOlder);
-      setCurrentStep('fetch');
-      const direction = fetchOlder ? 'older' : 'newer';
-      setStatusMessage(`Fetching ${direction} games from Lichess...`);
+      const result = await apiService.fetchGames(username.trim(), batchSize, fetchOlder);
+      if (result.success) {
+        setCurrentStep('fetch');
+        const direction = fetchOlder ? 'older' : 'newer';
+        setStatusMessage(`Fetching ${direction} games from Lichess...`);
+      } else {
+        setError(result.message || 'Failed to start fetching games');
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to start fetching games');
     } finally {
@@ -144,9 +172,19 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onStatsUpdate, use
     setStatusMessage('');
 
     try {
-      await apiService.analyzeGames(username.trim(), timeLimit, totalTimeLimit);
-      setCurrentStep('analyze');
-      setStatusMessage('Analyzing games...');
+      const result = await apiService.analyzeGames(username.trim(), timeLimit, totalTimeLimit);
+      
+      if (result.success) {
+        setCurrentStep('analyze');
+        setStatusMessage('Analyzing games...');
+      } else {
+        // Handle specific error for concurrent analyses limit
+        if (result.message.includes('Maximum concurrent analyses')) {
+          setError(`${result.message} You can view your stats while waiting.`);
+        } else {
+          setError(result.message || 'Failed to start analysis');
+        }
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to start analysis');
     } finally {
