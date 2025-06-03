@@ -100,7 +100,7 @@ export interface FilterOptions {
 class ApiService {
   private axios = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 30000,
+    timeout: 90000,  // Increased timeout for cloud deployment (90 seconds)
   });
 
   async getStats(username: string, timeControl?: string): Promise<GameStats> {
@@ -140,9 +140,25 @@ class ApiService {
         message: response.data.message || 'Started fetching games' 
       };
     } catch (error: any) {
+      // Enhanced error handling for cloud deployment
+      let errorMessage = 'Failed to fetch games';
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Request timed out. The server may be experiencing high load. Please try again in a moment.';
+      } else if (error.response) {
+        // Server responded with error
+        errorMessage = error.response.data?.error || `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        // Network error
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else {
+        // Other error
+        errorMessage = error.message || 'Unknown error occurred';
+      }
+      
       return {
         success: false,
-        message: error.response?.data?.error || error.message || 'Failed to fetch games'
+        message: errorMessage
       };
     }
   }
@@ -164,17 +180,29 @@ class ApiService {
         message: response.data.message || 'Analysis started successfully' 
       };
     } catch (error: any) {
-      // Handle 429 Too Many Requests specifically
+      // Enhanced error handling for cloud deployment
       if (error.response && error.response.status === 429) {
         return {
           success: false,
           message: error.response.data.error || 'Maximum concurrent analyses reached. Please try again later.'
         };
       }
-      // Handle other errors
+      
+      let errorMessage = 'Failed to start analysis';
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Analysis request timed out. The server may be busy. Please try again.';
+      } else if (error.response) {
+        errorMessage = error.response.data?.error || `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else {
+        errorMessage = error.message || 'Unknown error occurred';
+      }
+      
       return {
         success: false,
-        message: error.response?.data?.error || error.message || 'Failed to start analysis'
+        message: errorMessage
       };
     }
   }
