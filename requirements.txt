@@ -5,3 +5,4 @@ aiohttp
 sqlalchemy
 flask
 flask-cors
+stockfish

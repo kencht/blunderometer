@@ -19,7 +19,10 @@
 1. Go to [render.com](https://render.com)
 2. Connect your GitHub repository `blunderometer`
 3. Create new "Web Service"
-4. Set build command: `pip install -r requirements.txt && cd frontend && npm install && npm run build`
+4. **Build Command Options (try in order if one fails):**
+   - **Option A (Simple):** `pip install -r requirements.txt && cd frontend && npm install && npm run build`
+   - **Option B (Script):** `bash build.sh`
+   - **Option C (Explicit):** `pip install -r requirements.txt; cd frontend; npm install; npm run build`
 5. Set start command: `python app.py`
 6. Deploy!
 
