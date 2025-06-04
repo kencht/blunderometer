@@ -19,7 +19,24 @@ A local web application to analyze your Lichess games and track blunders, mistak
 - Node.js 16+
 - Stockfish chess engine
 
-### Installation
+### Simple Setup
+
+1. **Clone and start**
+   ```bash
+   git clone https://github.com/kencht/blunderometer.git
+   cd blunderometer
+   ./start.sh
+   ```
+
+   The script will automatically:
+   - Install dependencies
+   - Build the frontend
+   - Check for Stockfish
+   - Start the server at http://localhost:5000
+
+### Manual Setup
+
+If you prefer manual installation:
 
 1. **Clone the repository**
    ```bash
