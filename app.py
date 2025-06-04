@@ -11,6 +11,14 @@ import threading
 import json
 import os
 
+# Copy databases from repository to cloud storage on startup
+if os.getenv('RENDER') or os.getenv('PORT'):  # Cloud environment
+    try:
+        from copy_database import copy_databases
+        copy_databases()
+    except Exception as e:
+        print(f"[STARTUP] Warning: Could not copy databases: {e}")
+
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 CORS(app)  # Allow all origins for development
 

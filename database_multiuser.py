@@ -53,7 +53,16 @@ class Move(Base):
 class DatabaseManager:
     """Manages databases for multiple users"""
     
-    def __init__(self, data_dir: str = "data"):
+    def __init__(self, data_dir: Optional[str] = None):
+        # Use cloud-appropriate data directory
+        if data_dir is None:
+            # For cloud deployment, use /tmp for ephemeral storage
+            # For local development, use 'data' folder
+            if os.getenv('RENDER') or os.getenv('PORT'):  # Cloud environment
+                data_dir = "/tmp/chess_data"
+            else:  # Local development
+                data_dir = "data"
+        
         self.data_dir = data_dir
         self.engines = {}
         self.sessions = {}
