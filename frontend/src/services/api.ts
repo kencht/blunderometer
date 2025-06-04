@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5001';
+// Use environment variable for API URL, fallback to localhost for development
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? window.location.origin  // Use same domain as frontend in production
+  : 'http://localhost:5001'; // Use localhost for development
 
 export interface TimeControlStats {
   games: number;
