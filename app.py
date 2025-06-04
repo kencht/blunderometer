@@ -23,6 +23,39 @@ def serve_frontend():
     else:
         return "Frontend not built. Run 'cd frontend && npm run build' first."
 
+# Health check endpoint for render.com debugging
+@app.route('/health')
+def health_check():
+    """Health check endpoint to verify render.com deployment"""
+    import platform
+    import sys
+    return jsonify({
+        'status': 'healthy',
+        'platform': platform.platform(),
+        'python_version': sys.version,
+        'timestamp': datetime.now(UTC).isoformat(),
+        'environment': 'render.com' if os.getenv('RENDER') else 'local'
+    })
+
+# Test endpoint for Lichess API connectivity
+@app.route('/test-lichess')
+def test_lichess():
+    """Test Lichess API connectivity from render.com"""
+    try:
+        import asyncio
+        from lichess_client import LichessClient
+        
+        async def test_connection():
+            async with LichessClient() as client:
+                # Try to get info for a known user
+                user_info = await client.get_user_info('kencht')
+                return {'status': 'success', 'user': user_info.get('username', 'unknown')}
+        
+        result = asyncio.run(test_connection())
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 # Per-user operation tracking and resource management
 user_operations = {}
 MAX_CONCURRENT_ANALYSES = 2  # Limit concurrent Stockfish engines to prevent CPU overload
