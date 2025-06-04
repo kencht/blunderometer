@@ -109,17 +109,18 @@ This will check your Python version, Node.js, Stockfish installation, and all de
 
 ### 4. Configure Stockfish (if needed)
 
-If Stockfish is not in your PATH or in `/opt/homebrew/bin/stockfish`, edit `game_analyzer.py`:
+**Stockfish Auto-Detection**: The application automatically detects Stockfish installation across different environments (macOS, Linux, Windows). If needed, you can override with the `STOCKFISH_PATH` environment variable:
 
-```python
-# Line 12-15: Update this path to match your Stockfish installation
-engine_path = "/your/path/to/stockfish"  # Update this line
+```bash
+export STOCKFISH_PATH="/custom/path/to/stockfish"
+python app.py
 ```
 
-Common paths:
+Common installation locations automatically detected:
 - **macOS Homebrew**: `/opt/homebrew/bin/stockfish`
 - **Ubuntu**: `/usr/bin/stockfish`  
-- **Windows**: `C:\Path\To\stockfish.exe`
+- **Windows**: Found via PATH or `stockfish.exe`
+- **Cloud platforms**: Installed via package manager in build script
 
 ## 🚀 Running the Application
 

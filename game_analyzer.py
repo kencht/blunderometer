@@ -5,10 +5,62 @@ import asyncio
 from datetime import datetime, timedelta
 import io
 import time
+import os
+import shutil
 
 class GameAnalyzer:
-    def __init__(self, engine_path="/opt/homebrew/bin/stockfish"):
-        self.engine_path = engine_path
+    def __init__(self, engine_path=None):
+        """Initialize GameAnalyzer with automatic Stockfish detection"""
+        if engine_path:
+            self.engine_path = engine_path
+        else:
+            self.engine_path = self._find_stockfish_engine()
+    
+    def _find_stockfish_engine(self):
+        """Automatically find Stockfish engine path across different environments"""
+        # Check environment variable first
+        env_path = os.getenv('STOCKFISH_PATH')
+        if env_path and os.path.isfile(env_path):
+            print(f"[INFO] Using Stockfish from STOCKFISH_PATH: {env_path}")
+            return env_path
+        
+        # Common Stockfish locations to check
+        possible_paths = [
+            # Cloud/Linux environments (most common)
+            "/usr/bin/stockfish",
+            "/usr/local/bin/stockfish", 
+            "stockfish",  # If in PATH
+            # macOS Homebrew
+            "/opt/homebrew/bin/stockfish",
+            "/usr/local/bin/stockfish",
+            # Windows
+            "stockfish.exe",
+            # Alternative names
+            "/usr/games/stockfish",
+            "/app/stockfish"  # Some cloud platforms
+        ]
+        
+        # First, try to find it in PATH
+        stockfish_in_path = shutil.which("stockfish")
+        if stockfish_in_path:
+            print(f"[INFO] Found Stockfish in PATH: {stockfish_in_path}")
+            return stockfish_in_path
+        
+        # Then check each possible path
+        for path in possible_paths:
+            if os.path.isfile(path):
+                print(f"[INFO] Found Stockfish at: {path}")
+                return path
+        
+        # If not found, raise an informative error
+        raise FileNotFoundError(
+            "Stockfish engine not found. Please install Stockfish:\n"
+            "- Ubuntu/Debian: sudo apt-get install stockfish\n"
+            "- macOS: brew install stockfish\n"
+            "- Windows: Download from https://stockfishchess.org/download/\n"
+            "- Or set STOCKFISH_PATH environment variable to the engine location\n"
+            "- Cloud platforms: Ensure stockfish package is installed in build script"
+        )
         
     async def analyze_game_with_time_limit(self, pgn_text, user_color, time_limit_seconds=300):
         """Analyze a game with a time limit. Returns (success, move_evaluations)"""
