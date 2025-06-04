@@ -1,6 +1,6 @@
 """
 Multi-user database management for Chess Blunder Tracker
-Supports both SQLite (local) and PostgreSQL (cloud deployment)
+SQLite only - for local use
 """
 
 import os
@@ -10,7 +10,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from typing import Optional
-import urllib.parse
 
 Base = declarative_base()
 
@@ -18,92 +17,60 @@ class Game(Base):
     __tablename__ = 'games'
     
     id = Column(Integer, primary_key=True)
-    lichess_id = Column(String(255), nullable=False)  # Added length for PostgreSQL
-    username = Column(String(255), nullable=False)   # Added length for PostgreSQL
+    lichess_id = Column(String, nullable=False, unique=True)
+    username = Column(String, nullable=False)
     played_at = Column(DateTime, nullable=False)
-    time_control = Column(String(50))                # Added length for PostgreSQL
-    variant = Column(String(50))                     # Added length for PostgreSQL
-    opening_name = Column(String(255))               # Added length for PostgreSQL
-    opening_eco = Column(String(10))                 # Added length for PostgreSQL
-    user_color = Column(String(10))                  # 'white' or 'black'
+    time_control = Column(String)
+    variant = Column(String)
+    opening_name = Column(String)
+    opening_eco = Column(String)
+    user_color = Column(String)  # 'white' or 'black'
     user_rating = Column(Integer)
     opponent_rating = Column(Integer)
-    result = Column(String(20))                      # Added length for PostgreSQL
-    pgn = Column(String)                             # Text field for PostgreSQL
+    result = Column(String)
+    pgn = Column(String)
     fully_analyzed = Column(Boolean, default=False)
     analysis_started_at = Column(DateTime)
     analysis_completed_at = Column(DateTime)
-    
-    # Create composite unique constraint for PostgreSQL multi-user support
-    __table_args__ = (
-        sa.UniqueConstraint('lichess_id', 'username', name='uq_game_lichess_user'),
-        sa.Index('idx_games_username', 'username'),
-        sa.Index('idx_games_played_at', 'played_at'),
-    )
 
 class Move(Base):
     __tablename__ = 'moves'
     
     id = Column(Integer, primary_key=True)
-    game_lichess_id = Column(String(255), nullable=False)  # Reference to game
+    game_lichess_id = Column(String, nullable=False)  # Reference to game
     move_number = Column(Integer, nullable=False)
     played_at = Column(DateTime, nullable=False)  # From game
-    move_san = Column(String(20), nullable=False)           # Added length for PostgreSQL
+    move_san = Column(String, nullable=False)
     centipawn_loss = Column(Integer)  # For user moves only
     opponent_rating = Column(Integer)  # From game
-    opening_name = Column(String(255))  # From game               # Added length for PostgreSQL
-    time_control = Column(String(50))  # From game               # Added length for PostgreSQL
-    user_color = Column(String(10))  # From game                 # Added length for PostgreSQL
+    opening_name = Column(String)  # From game
+    time_control = Column(String)  # From game
+    user_color = Column(String)  # From game
     is_blunder = Column(Boolean, default=False)  # Centipawn loss >= 300
     is_mistake = Column(Boolean, default=False)  # Centipawn loss >= 100
     is_inaccuracy = Column(Boolean, default=False)  # Centipawn loss >= 50
-    
-    # Create indexes for PostgreSQL performance
-    __table_args__ = (
-        sa.Index('idx_moves_game_lichess_id', 'game_lichess_id'),
-        sa.Index('idx_moves_played_at', 'played_at'),
-        sa.Index('idx_moves_blunder', 'is_blunder'),
-    )
 
 class DatabaseManager:
-    """Manages databases for multiple users"""
+    """Manages SQLite databases for multiple users locally"""
     
     def __init__(self, data_dir: Optional[str] = None):
-        # Determine if we're using PostgreSQL (cloud) or SQLite (local)
-        self.use_postgres = bool(os.getenv('DATABASE_URL'))
-        
-        if self.use_postgres:
-            # Cloud deployment with PostgreSQL
-            self.database_url = os.getenv('DATABASE_URL')
-            print(f"[INFO] Using PostgreSQL database")
-        else:
-            # Local development with SQLite
-            if data_dir is None:
-                data_dir = "data"
-            self.data_dir = data_dir
-            os.makedirs(data_dir, exist_ok=True)
-            print(f"[INFO] Using SQLite databases in {data_dir}")
+        if data_dir is None:
+            data_dir = "data"
+        self.data_dir = data_dir
+        os.makedirs(data_dir, exist_ok=True)
+        print(f"[INFO] Using SQLite databases in {data_dir}")
         
         self.engines = {}
         self.sessions = {}
     
     def get_connection_string(self, username: str) -> str:
-        """Get the database connection string for a specific user"""
-        if self.use_postgres:
-            # PostgreSQL: Use single database with user-scoped tables
-            return self.database_url or ""
-        else:
-            # SQLite: One file per user
-            safe_username = "".join(c for c in username if c.isalnum() or c in ('-', '_')).lower()
-            db_path = os.path.join(self.data_dir, f"chess_blunders_{safe_username}.db")
-            return f'sqlite:///{db_path}'
+        """Get the SQLite database connection string for a specific user"""
+        safe_username = "".join(c for c in username if c.isalnum() or c in ('-', '_')).lower()
+        db_path = os.path.join(self.data_dir, f"chess_blunders_{safe_username}.db")
+        return f'sqlite:///{db_path}'
     
     def get_db_path(self, username: str) -> str:
-        """Get the database file path for a specific user (SQLite only)"""
-        if self.use_postgres:
-            return "PostgreSQL Database"
-        
-        # Sanitize username for filename
+        """Get the physical database file path for a user"""
         safe_username = "".join(c for c in username if c.isalnum() or c in ('-', '_')).lower()
         return os.path.join(self.data_dir, f"chess_blunders_{safe_username}.db")
     
@@ -111,66 +78,113 @@ class DatabaseManager:
         """Get or create database engine for a user"""
         if username not in self.engines:
             connection_string = self.get_connection_string(username)
-            self.engines[username] = create_engine(connection_string)
+            self.engines[username] = create_engine(connection_string, echo=False)
             
             # Create tables if they don't exist
             Base.metadata.create_all(self.engines[username])
-        
+            
         return self.engines[username]
     
     def get_session(self, username: str):
-        """Get a database session for a specific user"""
+        """Get or create database session for a user"""
         if username not in self.sessions:
             engine = self.get_engine(username)
-            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-            self.sessions[username] = SessionLocal
+            Session = sessionmaker(bind=engine)
+            self.sessions[username] = Session()
+            
+        return self.sessions[username]
+    
+    def close_session(self, username: str):
+        """Close database session for a user"""
+        if username in self.sessions:
+            self.sessions[username].close()
+            del self.sessions[username]
+    
+    def close_all_sessions(self):
+        """Close all database sessions"""
+        for username in list(self.sessions.keys()):
+            self.close_session(username)
+    
+    def get_game_count(self, username: str) -> int:
+        """Get total number of games for a user"""
+        session = self.get_session(username)
+        return session.query(Game).count()
+    
+    def get_move_count(self, username: str) -> int:
+        """Get total number of moves for a user"""
+        session = self.get_session(username)
+        return session.query(Move).count()
+    
+    def get_blunder_count(self, username: str) -> int:
+        """Get total number of blunders for a user"""
+        session = self.get_session(username)
+        return session.query(Move).filter(Move.is_blunder == True).count()
+    
+    def game_exists(self, username: str, lichess_id: str) -> bool:
+        """Check if a game already exists for a user"""
+        session = self.get_session(username)
+        return session.query(Game).filter(Game.lichess_id == lichess_id).first() is not None
+    
+    def add_game(self, username: str, game_data: dict) -> Game:
+        """Add a new game for a user"""
+        session = self.get_session(username)
         
-        return self.sessions[username]()
+        game = Game(
+            lichess_id=game_data['lichess_id'],
+            username=username,
+            played_at=game_data['played_at'],
+            time_control=game_data.get('time_control'),
+            variant=game_data.get('variant'),
+            opening_name=game_data.get('opening_name'),
+            opening_eco=game_data.get('opening_eco'),
+            user_color=game_data.get('user_color'),
+            user_rating=game_data.get('user_rating'),
+            opponent_rating=game_data.get('opponent_rating'),
+            result=game_data.get('result'),
+            pgn=game_data.get('pgn')
+        )
+        
+        session.add(game)
+        session.commit()
+        return game
     
-    def get_db(self, username: str):
-        """Get a database session for a specific user (compatibility method)"""
-        return self.get_session(username)
+    def update_game_analysis(self, username: str, lichess_id: str, analysis_data: dict):
+        """Update game analysis status"""
+        session = self.get_session(username)
+        game = session.query(Game).filter(Game.lichess_id == lichess_id).first()
+        
+        if game:
+            for key, value in analysis_data.items():
+                setattr(game, key, value)
+            session.commit()
     
-    def list_users(self) -> list[str]:
-        """List all users with databases"""
-        users = []
-        if os.path.exists(self.data_dir):
-            for filename in os.listdir(self.data_dir):
-                if filename.startswith("chess_blunders_") and filename.endswith(".db"):
-                    # Extract username from filename
-                    username = filename[15:-3]  # Remove "chess_blunders_" and ".db"
-                    users.append(username)
-        return sorted(users)
+    def add_moves(self, username: str, moves_data: list):
+        """Add multiple moves for a user"""
+        session = self.get_session(username)
+        
+        moves = []
+        for move_data in moves_data:
+            move = Move(**move_data)
+            moves.append(move)
+        
+        session.add_all(moves)
+        session.commit()
     
     def get_user_stats(self, username: str) -> dict:
-        """Get basic stats for a user to check if they have data"""
-        try:
-            db = self.get_db(username)
-            total_games = db.query(Game).count()
-            total_moves = db.query(Move).count()
-            db.close()
-            return {
-                'username': username,
-                'games': total_games,
-                'moves': total_moves,
-                'has_data': total_games > 0
-            }
-        except Exception:
-            return {
-                'username': username,
-                'games': 0,
-                'moves': 0,
-                'has_data': False
-            }
-
-# Global database manager instance
-db_manager = DatabaseManager()
-
-# Legacy compatibility functions
-def get_db(username: Optional[str] = None):
-    """Get a database session - requires username for new multi-user system"""
-    if username is None:
-        # Fallback to default database for backwards compatibility
-        # This should be removed once all calls are updated
-        username = "default"
-    return db_manager.get_db(username)
+        """Get comprehensive stats for a user"""
+        session = self.get_session(username)
+        
+        total_games = session.query(Game).count()
+        total_moves = session.query(Move).count()
+        total_blunders = session.query(Move).filter(Move.is_blunder == True).count()
+        total_mistakes = session.query(Move).filter(Move.is_mistake == True).count()
+        total_inaccuracies = session.query(Move).filter(Move.is_inaccuracy == True).count()
+        
+        return {
+            'total_games': total_games,
+            'total_moves': total_moves,
+            'total_blunders': total_blunders,
+            'total_mistakes': total_mistakes,
+            'total_inaccuracies': total_inaccuracies,
+            'blunder_rate': (total_blunders / total_moves * 100) if total_moves > 0 else 0
+        }

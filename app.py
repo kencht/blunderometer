@@ -5,18 +5,19 @@ from flask_cors import CORS
 import asyncio
 from datetime import datetime, UTC
 from sqlalchemy import func
-from database_multiuser import db_manager, Game, Move
+from database_multiuser import DatabaseManager, Game, Move
 from main import BlunderTracker
 import threading
 import json
 import os
 
-# PostgreSQL will handle persistent storage - no need for database copying
+# Initialize database manager
+db_manager = DatabaseManager()
 
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 CORS(app)  # Allow all origins for development
 
-# Serve React frontend in production
+# Serve React frontend
 @app.route('/')
 def serve_frontend():
     """Serve the React frontend"""
@@ -24,39 +25,6 @@ def serve_frontend():
         return app.send_static_file('index.html')
     else:
         return "Frontend not built. Run 'cd frontend && npm run build' first."
-
-# Health check endpoint for render.com debugging
-@app.route('/health')
-def health_check():
-    """Health check endpoint to verify render.com deployment"""
-    import platform
-    import sys
-    return jsonify({
-        'status': 'healthy',
-        'platform': platform.platform(),
-        'python_version': sys.version,
-        'timestamp': datetime.now(UTC).isoformat(),
-        'environment': 'render.com' if os.getenv('RENDER') else 'local'
-    })
-
-# Test endpoint for Lichess API connectivity
-@app.route('/test-lichess')
-def test_lichess():
-    """Test Lichess API connectivity from render.com"""
-    try:
-        import asyncio
-        from lichess_client import LichessClient
-        
-        async def test_connection():
-            async with LichessClient() as client:
-                # Try to get info for a known user
-                user_info = await client.get_user_info('kencht')
-                return {'status': 'success', 'user': user_info.get('username', 'unknown')}
-        
-        result = asyncio.run(test_connection())
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # Per-user operation tracking and resource management
 user_operations = {}

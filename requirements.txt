@@ -6,4 +6,3 @@ sqlalchemy
 flask
 flask-cors
 stockfish
-psycopg2-binary
