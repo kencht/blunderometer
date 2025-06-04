@@ -58,12 +58,16 @@
 
 ## 🚀 Next Steps for Cloud Deployment
 
+### ✅ CRITICAL ISSUE RESOLVED
+**Stockfish Path Issue Fixed**: The hardcoded `/opt/homebrew/bin/stockfish` path that would have caused deployment failures has been replaced with automatic cross-platform detection.
+
 ### Immediate Actions Required:
 
 1. **Deploy to Render.com**:
    ```bash
    cd blunder_tracker
    ./deploy.sh  # Automated deployment helper
+   # OR manually follow DEPLOYMENT_GUIDE.md
    ```
 
 2. **Set up PostgreSQL Database**:
@@ -83,6 +87,19 @@
    - Enter your Lichess username
    - Fetch games and run analysis
    - Verify data persists across container restarts
+
+## 🔧 Critical Fixes Applied
+
+### Stockfish Engine Detection ✅
+- **Problem**: Hardcoded `/opt/homebrew/bin/stockfish` causing cloud deployment failures
+- **Solution**: Automatic cross-platform detection with fallback paths
+- **Support**: macOS Homebrew, Linux apt packages, Windows, cloud environments
+- **Override**: `STOCKFISH_PATH` environment variable for custom installations
+
+### Build Process Enhancement ✅
+- **Added**: Automatic Stockfish installation in `build.sh`
+- **Platforms**: Ubuntu/Debian (`apt-get install stockfish`)
+- **Tested**: Local analysis working with auto-detection
 
 ## 🎯 Expected Results
 
