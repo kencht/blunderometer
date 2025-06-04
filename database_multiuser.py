@@ -94,6 +94,10 @@ class DatabaseManager:
             
         return self.sessions[username]
     
+    def get_db(self, username: str):
+        """Get database session for a user (alias for get_session for Flask app compatibility)"""
+        return self.get_session(username)
+    
     def close_session(self, username: str):
         """Close database session for a user"""
         if username in self.sessions:

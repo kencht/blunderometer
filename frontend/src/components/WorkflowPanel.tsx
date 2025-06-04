@@ -27,6 +27,9 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onStatsUpdate, use
   const [batchSize, setBatchSize] = useState(50);
   const [timeLimit, setTimeLimit] = useState(20);
   const [totalTimeLimit, setTotalTimeLimit] = useState<number | undefined>(undefined);
+  
+  // Remove local threshold state - now using props
+  
   const [isLoading, setIsLoading] = useState(false);
   const [keepAliveSession, setKeepAliveSession] = useState<{ stop: () => void } | null>(null);
   const [operationStatus, setOperationStatus] = useState<OperationStatus>({

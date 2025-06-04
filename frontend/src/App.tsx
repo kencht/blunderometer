@@ -88,8 +88,11 @@ function App() {
                 Getting Started
               </h2>
               <p className="text-gray-600 mt-1">Fetch and analyze your chess games from Lichess</p>
-            </div>
-            <WorkflowPanel onStatsUpdate={handleStatsUpdate} username={username} onUsernameChange={setUsername} />
+            </div>            <WorkflowPanel 
+              onStatsUpdate={handleStatsUpdate} 
+              username={username}
+              onUsernameChange={setUsername}
+            />
           </div>
 
           {/* Performance Overview */}

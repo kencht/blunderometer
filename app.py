@@ -73,16 +73,13 @@ def get_active_analyses_count():
 
 @app.route('/api/stats')
 def get_stats():
-    """Get current database statistics for a specific user with optional time control filtering"""
+    """Get comprehensive game statistics"""
     username = request.args.get('username', 'default')
-    time_control_filter = request.args.get('time_control')
-    
     if not username:
         return jsonify({'error': 'Username is required'}), 400
         
     # Update user activity timestamp
     update_user_activity(username)
-    
     db = db_manager.get_db(username)
     
     try:
@@ -91,6 +88,7 @@ def get_stats():
         moves_query = db.query(Move)
         
         # Apply time control filter if specified
+        time_control_filter = request.args.get('time_control')
         if time_control_filter and time_control_filter != 'All':
             games_query = games_query.filter(Game.time_control == time_control_filter)
             moves_query = moves_query.filter(Move.time_control == time_control_filter)
@@ -104,7 +102,7 @@ def get_stats():
         latest_game = games_query.order_by(Game.played_at.desc()).first()
         oldest_game = games_query.order_by(Game.played_at.asc()).first()
         
-        # Move stats
+        # Move stats using boolean flags
         total_moves = moves_query.count()
         blunders = moves_query.filter(Move.is_blunder == True).count()
         mistakes = moves_query.filter(Move.is_mistake == True).count()
